@@ -1,6 +1,5 @@
 // Firebase options for project: b-r-edible-oil-pvt-ltd
-// ANDROID is ready. For WINDOWS and WEB paste your Web app config below (see README step 4),
-// replacing every 'REPLACE_ME'. Until then those two show a "Firebase is not connected" screen.
+// Android, Web and Windows are all configured for the SAME project.
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
@@ -17,14 +16,14 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // ---- PASTE WEB CONFIG HERE (from Firebase > Project settings > Your apps > Web app) ----
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'REPLACE_ME',
-    appId: 'REPLACE_ME',
+    apiKey: 'AIzaSyDdUJCUwb-dOFixlWZi1o4utN1wGZWGI4U',
+    appId: '1:803926839029:web:a19d08f726b73a3dd4bfbc',
     messagingSenderId: '803926839029',
     projectId: 'b-r-edible-oil-pvt-ltd',
     authDomain: 'b-r-edible-oil-pvt-ltd.firebaseapp.com',
     storageBucket: 'b-r-edible-oil-pvt-ltd.firebasestorage.app',
+    measurementId: 'G-RMX9FJ2VEQ',
   );
 
   static const FirebaseOptions windows = web;
