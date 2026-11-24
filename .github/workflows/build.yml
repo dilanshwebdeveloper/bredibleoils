@@ -1,0 +1,108 @@
+name: Build ERP apps
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  android-and-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Create Android and Web folders (keeps our code)
+        run: |
+          cp pubspec.yaml /tmp/pubspec.yaml
+          cp -r lib /tmp/lib_bak
+          flutter create --platforms=android,web --org com.briedibleoils --project-name br_edible_oils_erp .
+          cp /tmp/pubspec.yaml pubspec.yaml
+          rm -rf lib && cp -r /tmp/lib_bak lib
+          rm -f test/widget_test.dart
+          sed -i 's/flutter\.minSdkVersion/23/' android/app/build.gradle*
+          if [ -f tools/patch_android.py ]; then python3 tools/patch_android.py; fi
+      - run: flutter pub get
+      - name: App icon and name (only if the icon files exist)
+        run: |
+          if [ -f icons_android_web.yaml ] && grep -q flutter_launcher_icons pubspec.yaml; then
+            dart run flutter_launcher_icons -f icons_android_web.yaml
+          fi
+          if [ -f tools/brand.py ]; then python3 tools/brand.py; fi
+      - run: flutter build apk --release
+      - run: flutter build web --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Android-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Web-App
+          path: build/web
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Create Windows folder (keeps our code)
+        shell: bash
+        run: |
+          cp pubspec.yaml /tmp/pubspec.yaml
+          cp -r lib /tmp/lib_bak
+          flutter create --platforms=windows --org com.briedibleoils --project-name br_edible_oils_erp .
+          cp /tmp/pubspec.yaml pubspec.yaml
+          rm -rf lib && cp -r /tmp/lib_bak lib
+          rm -f test/widget_test.dart
+      - run: flutter pub get
+      - name: App icon and name (only if the icon files exist)
+        shell: bash
+        run: |
+          if [ -f icons_windows.yaml ] && grep -q flutter_launcher_icons pubspec.yaml; then
+            dart run flutter_launcher_icons -f icons_windows.yaml
+          fi
+          if [ -f tools/brand.py ]; then python tools/brand.py; fi
+      - name: Build Windows
+        run: flutter build windows --release
+        env:
+          CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Windows-App
+          path: build/windows/x64/runner/Release
+      - name: Make Setup.exe installer
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          @'
+          [Setup]
+          AppName=B.R. Edible Oils ERP
+          AppVersion=1.0
+          AppPublisher=B.R. Edible Oils Pvt. Ltd.
+          DefaultDirName={autopf}\BR Edible Oils ERP
+          DefaultGroupName=B.R. Edible Oils
+          OutputBaseFilename=BR_Edible_Oils_ERP_Setup
+          OutputDir=installer_out
+          Compression=lzma
+          SolidCompression=yes
+          ArchitecturesInstallIn64BitMode=x64
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+          [Icons]
+          Name: "{group}\B.R. Edible Oils ERP"; Filename: "{app}\br_edible_oils_erp.exe"
+          Name: "{autodesktop}\B.R. Edible Oils ERP"; Filename: "{app}\br_edible_oils_erp.exe"
+          [Run]
+          Filename: "{app}\br_edible_oils_erp.exe"; Description: "Open the app"; Flags: nowait postinstall skipifsilent
+          '@ | Set-Content -Path installer.iss -Encoding ASCII
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Windows-Setup-EXE
+          path: installer_out/BR_Edible_Oils_ERP_Setup.exe
